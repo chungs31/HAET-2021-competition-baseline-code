@@ -13,11 +13,8 @@ import argparse
 import time
 
 from utils import progress_bar
-from resnet import PreActResNet18, PreActResNet9
+from dla import DLA
 
-#import torch.cuda.profiler as profiler
-#import pyprof
-#pyprof.init()
 start_epoch = 0
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
@@ -44,14 +41,14 @@ transform_test = transforms.Compose([
 trainset = torchvision.datasets.CIFAR10(
     root='./data', train=True, download=True, transform=transform_train)
 trainloader = torch.utils.data.DataLoader(
-    trainset, batch_size=512, shuffle=False, num_workers=8, pin_memory=True)
+    trainset, batch_size=2048, shuffle=True, num_workers=8, pin_memory=True)
 
 testset = torchvision.datasets.CIFAR10(
     root='./data', train=False, download=True, transform=transform_test)
 testloader = torch.utils.data.DataLoader(
     testset, batch_size=100, shuffle=False, num_workers=4, pin_memory=True)
 
-net = PreActResNet9()#Define your network here
+net = DLA()
 net = net.to(device)
 if device == 'cuda':
     net = torch.nn.DataParallel(net)
@@ -71,7 +68,6 @@ def train(epoch):
     total = 0
 
     scaler = torch.cuda.amp.GradScaler()
-
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
@@ -80,8 +76,6 @@ def train(epoch):
             outputs = net(inputs)
             loss = criterion(outputs, targets)
         
-        #loss.backward()
-        #optimizer.step()
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
@@ -100,15 +94,10 @@ def train(epoch):
         }
         torch.save(state, args.net_sav)
 
-def baseline():
-    #t1 = time.time()
-    for epoch in range(start_epoch, start_epoch+25):
+def run_training():
+    for epoch in range(start_epoch, start_epoch+250):
         train(epoch)
         scheduler.step()
-        #t2 = time.time()
-        #print(t2 - t1)
-        #if (t2 - t1 > 600.0):
-        #    return
 
-baseline()
+run_training()
 
